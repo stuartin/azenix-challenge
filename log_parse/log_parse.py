@@ -1,7 +1,7 @@
 from datetime import datetime
 from dataclasses import dataclass
 from typing import List
-
+import re
 
 @dataclass
 class LogEntry:
@@ -33,6 +33,19 @@ def parse_log_line(line: str) -> LogEntry:
     :rtype: LogEntry
     """
     
+    # Get all fields between quotation marks
+    quoted_content_regex = '"([^"]*)"'
+    quoted_content_regex_result = re.findall(quoted_content_regex, line)
+    if len(quoted_content_regex_result) != 3:
+        raise ValueError('Could not parse http_method or user_agent from log entry.')
+    http_method, _, user_agent  = quoted_content_regex_result
+
+    # Separate out http_method into method, url, protocol
+    http_method_fields = http_method.split(' ')
+    if len(http_method_fields) != 3:
+        raise ValueError('Could not parse method, url or protocol from http_method.')
+    method, url, protocol = http_method_fields
+
     # TODO: Parse line into separate fields
 
     ip = '50.112.00.11'
@@ -40,10 +53,10 @@ def parse_log_line(line: str) -> LogEntry:
     date = '11/Jul/2018:17:33:01 +0200'
     response = 200
     bytes = 3574
-    method = 'GET'
-    url = '/asset.css'
-    protocol = 'HTTP/1.1'
-    user_agent = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1092.0 Safari/536.6'
+    # method = 'GET'
+    # url = '/asset.css'
+    # protocol = 'HTTP/1.1'
+    # user_agent = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1092.0 Safari/536.6'
 
 
     return LogEntry(ip, user, date, response, bytes, method, url, protocol, user_agent)
@@ -59,8 +72,14 @@ def main():
         '168.41.191.41 - - [11/Jul/2018:17:41:30 +0200] "GET /this/page/does/not/exist/ HTTP/1.1" 404 3574 "-" "Mozilla/5.0 (Linux; U; Android 2.3.5; en-us; HTC Vision Build/GRI40) AppleWebKit/533.1 (KHTML, like Gecko) Version/4.0 Mobile Safari/533.1"'
     ]
 
-    log_entries = LogEntries([parse_log_line(line) for line in lines])
-    print(log_entries.logs)
+    try:
+
+        log_entries = LogEntries([parse_log_line(line) for line in lines])
+        print(f"{[i.user_agent for i in log_entries.logs]}")
+    
+    except ValueError as error:
+        print('Failed to parse the log file.\n')
+        print(error)
 
     pass
 
