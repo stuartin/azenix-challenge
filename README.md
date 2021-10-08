@@ -14,7 +14,7 @@ python .\log_parse\log_parse.py --log-file 'sample-data.log'
 ```
 
 ### Logging
-If you need to debug a why parsing fails for a file, you can add the `--verbose` flag to the exection to output the line that is being parsed to troubleshoot.
+If you need to debug why parsing fails for a file, you can add the `--verbose` flag to the exection to output the line that is being parsed for further troubleshooting.
 
 ```bash
 python .\log_parse\log_parse.py --log-file 'sample-data.log' --verbose
