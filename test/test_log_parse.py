@@ -1,8 +1,14 @@
 from datetime import datetime
 from log_parse import log_parse
+from unittest import mock
+from io import BytesIO, TextIOWrapper
+import argparse
 import unittest
 
 class TestLogParse(unittest.TestCase):
+
+    # Log Entries Tests
+    # -----------------
     def test_success_log_entries(self):
         lines = [
             '177.71.128.21 - - [10/Jul/2018:22:21:28 +0200] "GET /intranet-analytics/ HTTP/1.1" 200 3574 "-" "Mozilla/5.0 (X11; U; Linux x86_64; fr-FR) AppleWebKit/534.7 (KHTML, like Gecko) Epiphany/2.30.6 Safari/534.7"',
@@ -15,11 +21,14 @@ class TestLogParse(unittest.TestCase):
         self.assertEqual(len(log_entries.logs), len(lines))
         self.assertIsInstance(log_entries.logs[0], log_parse.LogEntry)
 
+
+    # Log Entry Tests
+    # -----------------
     def test_success_parse_log_line(self):
         line = '50.112.00.11 - admin [11/Jul/2018:17:33:01 +0200] "GET /asset.css HTTP/1.1" 200 3574 "-" "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1092.0 Safari/536.6"'
 
         DATETIME_FORMAT = "%d/%b/%Y:%H:%M:%S %z"
-        
+
         ip = '50.112.00.11'
         user = 'admin'
         date = '11/Jul/2018:17:33:01 +0200'
@@ -43,4 +52,43 @@ class TestLogParse(unittest.TestCase):
         self.assertEqual(log_entry.url, url)
         self.assertEqual(log_entry.protocol, protocol)
         self.assertEqual(log_entry.user_agent, user_agent)
+
+    def test_no_data_log_entry_exception(self):
+        line = ''
+        self.assertRaisesRegex(ValueError, 'The log entry did not contain any data.', log_parse.parse_log_line, line)
+
+    def test_invalid_http_method_or_user_agent_log_entry_exception(self):
+        line = '50.112.00.11 - admin [11/Jul/2018:17:33:01 +0200] "GET /asset.css HTTP/1.1" 200 3574 "-" no_user_agent'
+        self.assertRaisesRegex(ValueError, 'Could not parse http_method or user_agent from log entry.', log_parse.parse_log_line, line)
+
+    def test_invalid_http_method_fields_log_entry_exception(self):
+        line = '50.112.00.11 - admin [11/Jul/2018:17:33:01 +0200] "GET HTTP/1.1" 200 3574 "-" "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1092.0 Safari/536.6"'
+        self.assertRaisesRegex(ValueError, 'Could not parse method, url or protocol from http_method.', log_parse.parse_log_line, line)
+
+    def test_invalid_date_log_entry_exception(self):
+        line = '50.112.00.11 - admin 11/Jul/2018:17:33:01 +0200 "GET /asset.css HTTP/1.1" 200 3574 "-" "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1092.0 Safari/536.6"'
+        self.assertRaisesRegex(ValueError, 'Could not parse date from log entry.', log_parse.parse_log_line, line)
+
+    def test_invalid_remaining_fields_log_entry_exception(self):
+        line = '[11/Jul/2018:17:33:01 +0200] "GET /asset.css HTTP/1.1" "-" "Mozilla/5.0"'
+        self.assertRaisesRegex(ValueError, 'Could not parse ip, user, response or bytes from log entry.', log_parse.parse_log_line, line)
     
+
+    # Argparse Tests
+    # -----------------
+    @mock.patch('argparse.ArgumentParser.parse_args', return_value=argparse.Namespace(log_file=TextIOWrapper(BytesIO(), encoding='UTF8'), verbose=None))
+    def test_default_get_args(self, *args):
+        args = log_parse.get_args(['--log-file', 'file.log'])
+        self.assertIsInstance(args.log_file, TextIOWrapper)
+        self.assertEqual(args.verbose, None)
+
+    @mock.patch('argparse.ArgumentParser.parse_args', return_value=argparse.Namespace(log_file=TextIOWrapper(BytesIO(), encoding='UTF8'), verbose=True))
+    def test_verbose_get_args(self, *args):
+        args = log_parse.get_args(['--log-file', 'file.log'])
+        self.assertIsInstance(args.log_file, TextIOWrapper)
+        self.assertEqual(args.verbose, True)
+
+    def test_invalid_get_args(self):
+        with self.assertRaises(SystemExit) as exit_system:
+            log_parse.get_args(None)
+        self.assertEqual(exit_system.exception.code, 2)

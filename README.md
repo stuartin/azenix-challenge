@@ -19,6 +19,22 @@ If you need to debug a why parsing fails for a file, you can add the `--verbose`
 python .\log_parse\log_parse.py --log-file 'sample-data.log' --verbose
 ```
 
+### Tests
+To execute the tests you can run the below:
+
+```bash
+python -m unittest discover
+```
+
+#### Code Coverage
+To check code coverage, run the below and open the `htmlcov\index.html` file.
+
+```bash
+pip install coverage
+coverage run -m unittest discover
+coverage html
+```
+
 ## Challenge Details
 ### Requirements
 The task is to parse a log file containing HTTP requests and to report on its contents.
