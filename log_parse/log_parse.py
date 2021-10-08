@@ -1,6 +1,7 @@
 from datetime import datetime
 from dataclasses import dataclass
-from typing import List
+from typing import Dict, List
+from collections import Counter
 import re
 import logging
 import argparse
@@ -18,13 +19,54 @@ class LogEntry:
     protocol: str
     user_agent: str
 
+    def __getitem__(self, item):
+        return getattr(self, item)
+
 @dataclass
 class LogEntries:
     logs: List[LogEntry]
 
-    # TODO: func to get unique items
+    def __is_valid_field(self, field: str) -> bool:
+        """
+        Check the field exists
 
-    # TODO: func to get top items
+        :param field: A field/key from the LogEntry
+        :type field: str
+        :return: True/False
+        :rtype: bool
+        """
+
+        return len(self.logs) > 0 and hasattr(self.logs[0], field)
+
+    def unique(self, field: str) -> List[str]:
+        """
+        Return a list of unique log entries based on a field.
+
+        :param field: A field/key from the LogEntry
+        :type field: str
+        :return: A list of the unique items based on the field
+        :rtype: List[str]
+        """
+        
+        return sorted(set([log[field] for log in self.logs]))
+
+    def top(self, field: str, total: int) -> List[Dict]:
+        """
+        Return a dictionary of the most common items based on a field and the top x number of them.
+
+        :param field: A field/key from the LogEntry
+        :type field: str
+        :param total: How many to return. The top x number of results
+        :type total: int
+        :return: A list of Dict consisting of 'field' and 'count' keys
+        :rtype: List[Dict]
+        """
+        
+        if not self.__is_valid_field(field):
+            raise ValueError(f"Field '{field}' does not exist, or no log entries found.")
+
+        counter = Counter(log[field] for log in self.logs).most_common(total)
+        return [{field: i[0], 'count': i[1]} for i in counter]
 
 def parse_log_line(line: str) -> LogEntry:
     """
@@ -72,6 +114,37 @@ def parse_log_line(line: str) -> LogEntry:
 
     return LogEntry(ip, user, date, response, bytes, method, url, protocol, user_agent)
 
+def gen_output(unique_ips: List[str], top_urls: List[Dict], top_ips: List[Dict]):
+    """
+    Generate the required output
+
+    :param unique_ips: A list of unique ips 
+    :type unique_ips: List[str]
+    :param top_urls: A list of dictionaries containing a 'url' and 'count' dict
+    :type top_urls: List[Dict]
+    :param top_ips: A list of dictionaries containing a 'ip' and 'count' dict
+    :type top_ips: List[Dict]
+    """
+
+    print('Top 3 URLs:')
+    print('-----')
+    url_strings = list((f"({i['count']}) - {i['url']}" for i in top_urls))
+    print('\n'.join(url_strings))
+    print("\n")
+
+    print('Top 3 IPs:')
+    print('-----')
+    ip_strings = list((f"({i['count']}) - {i['ip']}" for i in top_ips))
+    print('\n'.join(ip_strings))
+    print('\n')
+
+    print('Unique IPs:')
+    print('-----')
+    print('\n'.join(unique_ips))
+    print('\n')
+
+    print('Done!')
+
 def get_args(args: List[str]):
     """
     Get the arguments passed into our script
@@ -95,7 +168,11 @@ def main():
 
     try:
         log_entries = LogEntries([parse_log_line(line) for line in args.log_file.readlines()])
-        print(f"{[i.date.strftime('%D') for i in log_entries.logs]}")
+        unique_ips = log_entries.unique('ip')
+        top_urls = log_entries.top('url', 3)
+        top_ips = log_entries.top('ip', 3)
+
+        gen_output(unique_ips, top_urls, top_ips)
     
     except ValueError as error:
         print('Failed to parse the log file.\n')
