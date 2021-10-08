@@ -1,4 +1,5 @@
 # azenix-challenge
+Please see [here](./results/results.md) for the results of the challenge, including tests and code coverage summary report.
 
 ## Getting Started
 
