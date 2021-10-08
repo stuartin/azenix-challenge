@@ -2,6 +2,7 @@ from datetime import datetime
 from dataclasses import dataclass
 from typing import List
 import re
+import logging
 
 @dataclass
 class LogEntry:
@@ -32,6 +33,11 @@ def parse_log_line(line: str) -> LogEntry:
     :return: A single LogEntry
     :rtype: LogEntry
     """
+
+    if len(line) <= 1:
+        raise ValueError('The log entry did not contain any data.')
+    
+    logging.info(f"\nParsing:\n{line}")
     
     # Get all fields between quotation marks
     quoted_content_regex = '"([^"]*)"'
@@ -46,18 +52,21 @@ def parse_log_line(line: str) -> LogEntry:
         raise ValueError('Could not parse method, url or protocol from http_method.')
     method, url, protocol = http_method_fields
 
-    # TODO: Parse line into separate fields
+    # Get the date field (everything between [])
+    hard_bracket_content_regex = '\[(.+)\]'
+    hard_bracket_content_regex_result = re.search(hard_bracket_content_regex, line)
+    if not hard_bracket_content_regex_result or len(hard_bracket_content_regex_result.groups()) != 1:
+        raise ValueError('Could not parse date from log entry.')
+    date_str = hard_bracket_content_regex_result.group(1)
+    date = datetime.strptime(date_str, "%d/%b/%Y:%H:%M:%S %z")
 
-    ip = '50.112.00.11'
-    user = 'admin'
-    date = '11/Jul/2018:17:33:01 +0200'
-    response = 200
-    bytes = 3574
-    # method = 'GET'
-    # url = '/asset.css'
-    # protocol = 'HTTP/1.1'
-    # user_agent = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1092.0 Safari/536.6'
-
+    # Get remaining fields
+    remaining_fields = line.split(' ')
+    if len(remaining_fields) < 10:
+        raise ValueError('Could not parse ip, user, response or bytes from log entry.')
+    ip, _, user, _, _, _, _, _, response, bytes, *_ = remaining_fields
+    response = int(response)
+    bytes = int(bytes)
 
     return LogEntry(ip, user, date, response, bytes, method, url, protocol, user_agent)
 
@@ -75,7 +84,7 @@ def main():
     try:
 
         log_entries = LogEntries([parse_log_line(line) for line in lines])
-        print(f"{[i.user_agent for i in log_entries.logs]}")
+        print(f"{[i.ip for i in log_entries.logs]}")
     
     except ValueError as error:
         print('Failed to parse the log file.\n')

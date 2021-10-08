@@ -1,3 +1,4 @@
+from datetime import datetime
 from log_parse import log_parse
 import unittest
 
@@ -17,6 +18,8 @@ class TestLogParse(unittest.TestCase):
     def test_success_parse_log_line(self):
         line = '50.112.00.11 - admin [11/Jul/2018:17:33:01 +0200] "GET /asset.css HTTP/1.1" 200 3574 "-" "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1092.0 Safari/536.6"'
 
+        DATETIME_FORMAT = "%d/%b/%Y:%H:%M:%S %z"
+        
         ip = '50.112.00.11'
         user = 'admin'
         date = '11/Jul/2018:17:33:01 +0200'
@@ -32,7 +35,8 @@ class TestLogParse(unittest.TestCase):
         self.assertIsInstance(log_entry, log_parse.LogEntry)
         self.assertEqual(log_entry.ip, ip)
         self.assertEqual(log_entry.user, user)
-        self.assertEqual(log_entry.date, date)
+        self.assertEqual(log_entry.date.strftime(DATETIME_FORMAT), date)
+        self.assertIsInstance(log_entry.date, datetime)
         self.assertEqual(log_entry.response, response)
         self.assertEqual(log_entry.bytes, bytes)
         self.assertEqual(log_entry.method, method)
